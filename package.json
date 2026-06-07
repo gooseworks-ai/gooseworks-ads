@@ -3,22 +3,45 @@
   "version": "0.0.1",
   "description": "Setup CLI for running Gooseworks ads locally in Claude Code.",
   "license": "MIT",
+  "author": "GooseWorks <help@gooseworks.ai>",
   "repository": {
     "type": "git",
     "url": "https://github.com/gooseworks-ai/gooseworks-ads.git"
   },
+  "homepage": "https://github.com/gooseworks-ai/gooseworks-ads#readme",
+  "bugs": {
+    "url": "https://github.com/gooseworks-ai/gooseworks-ads/issues"
+  },
+  "keywords": [
+    "gooseworks",
+    "goose-video",
+    "ads",
+    "cli",
+    "claude",
+    "claude-code",
+    "mcp",
+    "ai-agents",
+    "static-ads"
+  ],
   "type": "module",
   "bin": {
     "goose-video": "bin/goose-video.mjs"
   },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "LICENSE",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "node bin/goose-video.mjs"
+    "start": "node bin/goose-video.mjs",
+    "prepublishOnly": "node --check bin/goose-video.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "0.2.25",
     "@modelcontextprotocol/sdk": "^1.26.0"
   }
 }
