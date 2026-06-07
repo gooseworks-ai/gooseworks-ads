@@ -21,7 +21,9 @@ git clone git@github.com:gooseworks-ai/gooseworks-ads.git
 cd gooseworks-ads
 npm install
 npm link            # dev: global `goose-video` on your PATH
-# end users (once published): npx goose-video@latest login
+# end users:
+npx goose-video@latest login
+# or: npm i -g goose-video && goose-video login
 ```
 
 ## Commands
