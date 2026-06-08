@@ -16,8 +16,10 @@ happen to be set in your environment, prefer those.
 - You are the org's **Ads agent**. An **agent-scoped `cal_` token** authenticates everything
   — both the `gooseworks` MCP tools and the media proxies. Never log in or read other
   credential files; never print the token.
-- Generation **costs ad credits**, billed to that agent. Be economical: pick the right route
-  once, don't re-render speculatively. The user can run `goose-video credits`.
+- Generation is billed to the agent's **Gooseworks credits** by the media proxies (per call).
+  There is **no separate ad-credit balance and no preflight** — nothing blocks at "0 ad credits",
+  so don't check or stop on that. Still be economical: pick the right route once, don't re-render
+  speculatively. The user can run `goose-video credits`.
 
 ## Pick your recipe (route by the task)
 
@@ -111,12 +113,18 @@ remixing.
      apply them. If it doesn't, keep the reference ad's copy — don't invent new copy.
 5. If you saved more than one version, `set_final_render { project_id, render_id }` with the best
    one so the app shows it as the chosen ad. (One render → it's the default; no need to call.)
+6. **Give the user the link to view it.** `create_ad_project` and `get_ad_project` return an
+   `app_url` (`<app>/ads/brands/<slug>/projects/<id>`) — hand that to the user as the place to
+   open the finished ad. Do NOT give them the raw `render-file?path=…` URL: it's an internal,
+   session-scoped image path, not a shareable link.
 
 **Finish an existing project** — e.g. "finish project <id>":
-1. `get_ad_project { project_id }` → read `source_static_template_id`; `get_static_ad_template`
-   for the source image; `get_ad_brand` and run "Set up a brand" if research isn't complete.
+1. `get_ad_project { project_id }` → read `source_static_template_id` + the `app_url` to share
+   later; `get_static_ad_template` for the source image; `get_ad_brand` and run "Set up a brand"
+   if research isn't complete.
 2. Then generate + verify → `submit_render` → `update_render_status` for each finished output,
    then `set_final_render` with the best if you saved more than one — as above.
+3. Finish by giving the user the project's `app_url` so they can open the result in the app.
 
 You MUST create the brand (if missing) and the project through these tools before generating —
 the app reads brands/projects/renders from these rows, not from files.
@@ -206,7 +214,13 @@ def fal_generate(model_path, payload, timeout_s=120, poll_s=3):
     while time.time() < deadline:
         st = requests.get(status_url, params={"token": tok}).json()
         if st.get("status") == "COMPLETED":
-            return requests.get(response_url, params={"token": tok}).json()["images"][0]["url"]
+            out = requests.get(response_url, params={"token": tok}).json()
+            # Most models return {"images": [{"url": ...}]}; single-output ones
+            # (esrgan upscale, birefnet bg-removal) return {"image": {"url": ...}}.
+            img = (out.get("images") or [None])[0] or out.get("image")
+            if not img or not img.get("url"):
+                raise RuntimeError(f"FAL returned no image url: {out}")
+            return img["url"]
         if st.get("status") in ("FAILED", "ERROR"):
             raise RuntimeError(f"FAL failed: {st}")
         time.sleep(poll_s)
@@ -214,6 +228,11 @@ def fal_generate(model_path, payload, timeout_s=120, poll_s=3):
 
 # url = fal_generate("fal-ai/nano-banana-2/edit",
 #                    {"prompt": PROMPT, "image_urls": [SOURCE_URL, PRODUCT_URL]})
+# FAL model slugs (edit-reference, all take image_urls[]):
+#   - Nano Banana 2 → "fal-ai/nano-banana-2/edit"
+#   - GPT Image 2   → "fal-ai/gpt-image-1/edit-image"  (note: "gpt-image-1" slug
+#                      despite the "GPT Image 2" branding; long edge caps at 1536,
+#                      so esrgan-upscale the output if the spec asks for ≥2k)
 ```
 
 **Feeding FAL a local image (e.g. a cropped product):** simplest blessed path — store it in your

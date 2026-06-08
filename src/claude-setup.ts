@@ -24,7 +24,7 @@ const SKILL_PATH = join(SKILL_DIR, "SKILL.md");
 // auto-load the skill when the user pastes a remix / brand-research instruction.
 const FRONTMATTER = `---
 name: ${SKILL_NAME}
-description: Remix a Gooseworks static ad template into a branded ad, or research a brand. Use when the user pastes a goose-video instruction or asks to "remix this ad", references a static ad template id, or asks to "research my brand". Runs brand research, creates the brand + project in Gooseworks, and generates the final image through the Gooseworks media proxies (billed to ad credits).
+description: Remix a Gooseworks static ad template into a branded ad, or research a brand. Use when the user pastes a goose-video instruction or asks to "remix this ad", references a static ad template id, or asks to "research my brand". Runs brand research, creates the brand + project in Gooseworks, and generates the final image through the Gooseworks media proxies (billed to your Gooseworks credits).
 ---
 
 `;

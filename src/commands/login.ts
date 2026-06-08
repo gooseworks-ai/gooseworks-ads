@@ -25,6 +25,7 @@ interface LoginResult {
   agentId: string | null;
   email: string | null;
   mcpServerUrl: string | null;
+  apiBase: string | null;
 }
 
 /**
@@ -121,6 +122,7 @@ export async function login(flags: Flags): Promise<void> {
         agentId: url.searchParams.get("agent_id"),
         email: url.searchParams.get("email"),
         mcpServerUrl: url.searchParams.get("mcp_server_url"),
+        apiBase: url.searchParams.get("api_base"),
       });
     });
 
@@ -145,9 +147,13 @@ export async function login(flags: Flags): Promise<void> {
   });
 
   const mcpUrl = deriveMcpUrl(result.mcpServerUrl, d.mcpUrl);
+  // Prefer the backend's own API base (the env the user actually authed against)
+  // over the CLI's env-default guess, so apiBase + mcpUrl always point at the
+  // same host — fixes "MCP on prod, proxies on localhost".
+  const resolvedApiBase = result.apiBase ? stripSlash(result.apiBase) : apiBase;
   await saveConfig({
     token: result.token,
-    apiBase,
+    apiBase: resolvedApiBase,
     mcpUrl,
     env: d.env,
     email: result.email || undefined,
@@ -157,7 +163,7 @@ export async function login(flags: Flags): Promise<void> {
   console.log(`Logged in${result.email ? ` as ${result.email}` : ""}.`);
   console.log(`  env:     ${d.env}`);
   console.log(`  agent:   ${result.agentId || "(none returned)"}`);
-  console.log(`  apiBase: ${apiBase}`);
+  console.log(`  apiBase: ${resolvedApiBase}`);
   console.log(`  mcpUrl:  ${mcpUrl}`);
   if (result.scopeType && result.scopeType !== "agent") {
     console.warn(
