@@ -12,17 +12,26 @@
  *
  * Escape hatch: `goose-video login --token cal_…` skips the browser entirely.
  */
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { saveConfig, defaults } from "../config.mjs";
-import { setupClaudeCode } from "../claude-setup.mjs";
+import type { AddressInfo } from "node:net";
+import { saveConfig, defaults, type Flags } from "../config.js";
+import { setupClaudeCode } from "../claude-setup.js";
+
+interface LoginResult {
+  token: string;
+  scopeType: string | null;
+  agentId: string | null;
+  email: string | null;
+  mcpServerUrl: string | null;
+}
 
 /**
  * After the token is saved, wire up the user's Claude Code (skill + MCP server)
  * and print how to actually use it: open Claude, paste a remix instruction.
  */
-async function finishLogin(settings) {
+async function finishLogin(settings: { token: string; mcpUrl: string }): Promise<void> {
   console.log("\nSetting up Claude Code…");
   await setupClaudeCode(settings);
   console.log(
@@ -36,7 +45,7 @@ async function finishLogin(settings) {
 
 const LOGIN_TIMEOUT_MS = 3 * 60 * 1000;
 
-function openBrowser(url) {
+function openBrowser(url: string): void {
   const cmd =
     process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
@@ -47,37 +56,41 @@ function openBrowser(url) {
   }
 }
 
-const stripSlash = (u) => (typeof u === "string" ? u.replace(/\/+$/, "") : u);
+const stripSlash = (u: string): string => u.replace(/\/+$/, "");
 
 /** Derive the /mcp endpoint from the mcp_server_url the page hands back. */
-function deriveMcpUrl(mcpServerUrl, fallback) {
+function deriveMcpUrl(mcpServerUrl: string | null, fallback: string): string {
   if (!mcpServerUrl) return fallback;
   const base = stripSlash(mcpServerUrl);
   return /\/mcp$/.test(base) ? base : `${base}/mcp`;
 }
 
-export async function login(flags) {
-  const d = defaults();
-  const apiBase = stripSlash(flags.apiBase || d.apiBase);
-  const webUrl = stripSlash(flags.webUrl || d.webUrl);
+export async function login(flags: Flags): Promise<void> {
+  // defaults() folds in the selected environment (--local/--prod/GOOSE_VIDEO_ENV,
+  // default prod) plus any per-URL flag/env overrides.
+  const d = defaults(flags);
+  const apiBase = d.apiBase;
+  const webUrl = d.webUrl;
+  console.log(`Environment: ${d.env}  (apiBase ${apiBase}, web ${webUrl})`);
 
   // Manual mode — paste a token you already minted.
   if (typeof flags.token === "string" && flags.token.startsWith("cal_")) {
-    const settings = await saveConfig({
+    await saveConfig({
       token: flags.token,
       apiBase,
-      mcpUrl: flags.mcpUrl || d.mcpUrl,
+      mcpUrl: d.mcpUrl,
+      env: d.env,
     });
     console.log("Saved token to ~/.goose-video/config.json");
-    await finishLogin(settings);
+    await finishLogin({ token: flags.token, mcpUrl: d.mcpUrl });
     return;
   }
 
   const nonce = randomUUID();
-  const result = await new Promise((resolve, reject) => {
+  const result = await new Promise<LoginResult>((resolve, reject) => {
     let settled = false;
-    const server = createServer((req, res) => {
-      const url = new URL(req.url, "http://localhost");
+    const server: Server = createServer((req, res) => {
+      const url = new URL(req.url ?? "/", "http://localhost");
       if (url.pathname !== "/callback") {
         res.writeHead(204).end();
         return;
@@ -88,7 +101,7 @@ export async function login(flags) {
       // it the keep-alive socket lingers and the CLI process won't exit.
       res.writeHead(200, { "content-type": "text/html", connection: "close" });
       res.end(
-        "<html><body style=\"font-family:system-ui;text-align:center;padding:3rem;color:#1c1917\">" +
+        '<html><body style="font-family:system-ui;text-align:center;padding:3rem;color:#1c1917">' +
           (token
             ? "<h3>Authenticated</h3><p>You can close this tab and return to the terminal.</p>"
             : "<h3>Login failed</h3><p>No token received. Re-run <code>goose-video login</code>.</p>") +
@@ -113,7 +126,8 @@ export async function login(flags) {
 
     server.on("error", reject);
     server.listen(0, () => {
-      const { port } = server.address();
+      const addr = server.address() as AddressInfo | null;
+      const port = addr ? addr.port : 0;
       // agent_target=org_default pins the token to the org's shared "Ads agent",
       // so the local worker reads/writes the same storage the in-app ads flow uses.
       const authUrl = `${webUrl}/cli/auth?callback_port=${port}&state=${nonce}&scope_type=agent&agent_target=org_default`;
@@ -130,16 +144,18 @@ export async function login(flags) {
     }, LOGIN_TIMEOUT_MS).unref();
   });
 
-  const mcpUrl = deriveMcpUrl(result.mcpServerUrl, flags.mcpUrl || d.mcpUrl);
+  const mcpUrl = deriveMcpUrl(result.mcpServerUrl, d.mcpUrl);
   await saveConfig({
     token: result.token,
     apiBase,
     mcpUrl,
+    env: d.env,
     email: result.email || undefined,
     agentId: result.agentId || undefined,
   });
 
   console.log(`Logged in${result.email ? ` as ${result.email}` : ""}.`);
+  console.log(`  env:     ${d.env}`);
   console.log(`  agent:   ${result.agentId || "(none returned)"}`);
   console.log(`  apiBase: ${apiBase}`);
   console.log(`  mcpUrl:  ${mcpUrl}`);
@@ -151,5 +167,5 @@ export async function login(flags) {
     );
   }
 
-  await finishLogin({ token: result.token, apiBase, mcpUrl });
+  await finishLogin({ token: result.token, mcpUrl });
 }

@@ -9,15 +9,18 @@
  * image generation via the skill + MCP tools. There are no remix/research
  * subcommands here by design.
  */
-import { login } from "../src/commands/login.mjs";
-import { logout } from "../src/commands/logout.mjs";
-import { whoami } from "../src/commands/whoami.mjs";
-import { credits } from "../src/commands/credits.mjs";
-import { update } from "../src/commands/update.mjs";
+import type { Flags } from "./config.js";
+import { login } from "./commands/login.js";
+import { logout } from "./commands/logout.js";
+import { whoami } from "./commands/whoami.js";
+import { credits } from "./commands/credits.js";
+import { update } from "./commands/update.js";
+
+const camel = (s: string): string => s.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
 
 /** Minimal flag parser: `--key value` and `--key=value` and bare `--flag`. */
-function parseFlags(argv) {
-  const flags = {};
+function parseFlags(argv: string[]): Flags {
+  const flags: Flags = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith("--")) continue;
@@ -38,12 +41,10 @@ function parseFlags(argv) {
   return flags;
 }
 
-const camel = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-
 const HELP = `goose-video — set up Gooseworks ads in your own Claude Code
 
 Usage:
-  goose-video login    [--web-url URL] [--api-base URL] [--mcp-url URL] [--token cal_…]
+  goose-video login    [--prod | --local] [--web-url URL] [--api-base URL] [--mcp-url URL] [--token cal_…]
   goose-video logout
   goose-video whoami                 # checks the token + app-mcp connection
   goose-video credits
@@ -60,9 +61,17 @@ Browse remixable templates and copy a ready-made prompt at <web>/remix.
 Generation runs on your own Claude Code session + ANTHROPIC key; media is billed to
 ad credits.
 
-Global flags: --api-base, --mcp-url, --web-url, --token   (override saved config)`;
+Environments (default: prod):
+  prod    app.gooseworks.ai / api.gooseworks.ai     (the default; login --prod)
+  local   localhost:3999 / :5999 / :6200            (login --local)
+  Switch per-command with --prod / --local, or persist with GOOSE_VIDEO_ENV=local
+  in your shell. login saves the chosen environment, so later commands stay on it.
 
-async function main() {
+Global flags: --prod, --local, --api-base, --mcp-url, --web-url, --token
+  Per-URL flags / env vars override the environment. Env vars: GOOSE_VIDEO_ENV,
+  GOOSE_VIDEO_API_BASE, GOOSE_VIDEO_MCP_URL, GOOSE_VIDEO_WEB_URL.`;
+
+async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   const flags = parseFlags(rest);
 
@@ -90,7 +99,7 @@ async function main() {
         process.exitCode = 1;
     }
   } catch (err) {
-    console.error(`\nError: ${err?.message || err}`);
+    console.error(`\nError: ${(err as Error)?.message || err}`);
     process.exitCode = 1;
   }
 }
@@ -100,7 +109,7 @@ async function main() {
 main().then(
   () => process.exit(process.exitCode ?? 0),
   (err) => {
-    console.error(`\nError: ${err?.message || err}`);
+    console.error(`\nError: ${(err as Error)?.message || err}`);
     process.exit(1);
   },
 );

@@ -25,11 +25,11 @@
   ],
   "type": "module",
   "bin": {
-    "goose-video": "bin/goose-video.mjs"
+    "goose-video": "./dist/index.js"
   },
+  "main": "./dist/index.js",
   "files": [
-    "bin",
-    "src",
+    "dist",
     "skills",
     "LICENSE",
     "README.md"
@@ -38,10 +38,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node bin/goose-video.mjs",
-    "prepublishOnly": "node --check bin/goose-video.mjs"
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

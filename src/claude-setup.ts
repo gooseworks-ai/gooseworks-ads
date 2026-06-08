@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { renderMasterSkill } from "./prompt.mjs";
+import { renderMasterSkill } from "./prompt.js";
 
 const run = promisify(execFile);
 
@@ -30,7 +30,7 @@ description: Remix a Gooseworks static ad template into a branded ad, or researc
 `;
 
 /** Install (or refresh) the ads-remix skill into the user's Claude Code. */
-export async function installClaudeSkill({ update = false } = {}) {
+export async function installClaudeSkill({ update = false }: { update?: boolean } = {}): Promise<string> {
   const body = await renderMasterSkill({ update });
   await mkdir(SKILL_DIR, { recursive: true });
   await writeFile(SKILL_PATH, FRONTMATTER + body);
@@ -38,7 +38,7 @@ export async function installClaudeSkill({ update = false } = {}) {
 }
 
 /** The `claude mcp add` command we run / suggest, as a printable string. */
-export function mcpAddCommand({ mcpUrl, token }) {
+export function mcpAddCommand({ mcpUrl, token }: { mcpUrl: string; token: string }): string {
   return (
     `claude mcp add gooseworks ${mcpUrl} --scope user --transport http ` +
     `--header "Authorization: Bearer ${token}"`
@@ -51,7 +51,13 @@ export function mcpAddCommand({ mcpUrl, token }) {
  * if the `claude` CLI is missing or the flags differ across versions, the caller
  * prints the manual command from mcpAddCommand().
  */
-export async function registerMcpServer({ mcpUrl, token }) {
+export async function registerMcpServer({
+  mcpUrl,
+  token,
+}: {
+  mcpUrl: string;
+  token: string;
+}): Promise<{ ok: boolean; method?: string; error?: string }> {
   try {
     // Refresh cleanly: drop any stale entry first (ignore "not found").
     await run("claude", ["mcp", "remove", "gooseworks", "--scope", "user"]).catch(() => {});
@@ -69,7 +75,7 @@ export async function registerMcpServer({ mcpUrl, token }) {
     ]);
     return { ok: true, method: "claude-cli" };
   } catch (err) {
-    return { ok: false, error: err?.message || String(err) };
+    return { ok: false, error: (err as Error)?.message || String(err) };
   }
 }
 
@@ -77,13 +83,16 @@ export async function registerMcpServer({ mcpUrl, token }) {
  * Run the full Claude Code setup after a token is saved: install the skill and
  * register the MCP server, printing what happened (and manual fallbacks).
  */
-export async function setupClaudeCode(settings) {
-  let skillPath = null;
+export async function setupClaudeCode(settings: {
+  mcpUrl: string;
+  token: string;
+}): Promise<{ skillPath: string | null; mcpRegistered: boolean }> {
+  let skillPath: string | null = null;
   try {
     skillPath = await installClaudeSkill();
     console.log(`  ✓ skill installed:  ${skillPath}`);
   } catch (err) {
-    console.warn(`  ⚠ couldn't install the ads-remix skill: ${err?.message || err}`);
+    console.warn(`  ⚠ couldn't install the ads-remix skill: ${(err as Error)?.message || err}`);
   }
 
   const reg = await registerMcpServer({ mcpUrl: settings.mcpUrl, token: settings.token });

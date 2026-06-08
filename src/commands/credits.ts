@@ -2,9 +2,16 @@
  * `goose-video credits` — show the agent's credit balance.
  * Hits the same `/v1/credits` endpoint the gooseworks CLI uses (Bearer cal_).
  */
-import { resolveSettings, loadConfig } from "../config.mjs";
+import { resolveSettings, loadConfig, type Flags } from "../config.js";
 
-export async function credits(flags) {
+interface CreditsData {
+  agent_id?: string;
+  available_credits?: number;
+  subscription_credits?: number;
+  purchased_credits?: number;
+}
+
+export async function credits(flags: Flags): Promise<void> {
   const settings = await resolveSettings(flags);
   const cfg = await loadConfig();
   const res = await fetch(`${settings.apiBase}/v1/credits`, {
@@ -13,7 +20,7 @@ export async function credits(flags) {
   if (!res.ok) {
     throw new Error(`/v1/credits → HTTP ${res.status} ${res.statusText}`);
   }
-  const body = await res.json();
+  const body = (await res.json()) as { data?: CreditsData };
   const d = body?.data || {};
   console.log(`Credits (agent ${d.agent_id || cfg.agentId || "?"}):`);
   console.log(`  available:    ${d.available_credits ?? "?"}`);

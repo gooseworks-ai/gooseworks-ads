@@ -60,17 +60,24 @@ at `../../brand-research/`", use these instead:
   (and `"failed"` + `research_error` if it dies).
 - `finalize_brand_research { brand_id }` — call this AFTER writing the pack; it re-reads the
   pack and sets the brand to `complete` + mirrors logo/colors. Do NOT hand-author colors.
-- `submit_render { project_id, kind }` — opens a render row and **debits the render credit
-  immediately** for `kind: "full"`. So on the local worker, sequence it LAST: generate +
-  verify a good image FIRST, then `submit_render` + `update_render_status` back-to-back, so a
-  failed generation never burns the render credit.
+- `submit_render { project_id, kind }` — opens a render row. **No credit gate** — generation is
+  billed by the media proxies (gooseworks credits) when you call them, so there's no per-render
+  debit to preflight. Still sequence it AFTER a good gen: generate + verify the image FIRST, then
+  `submit_render` + `update_render_status` back-to-back, so a render row always has a real image.
 - `update_render_status { render_id, status, output_url, thumbnail_url }` — publish the
   result. **`output_url` must be DURABLE — use the render-file URL, NOT the fal CDN URL.** After
   uploading the image into the project folder (below), set `output_url` =
   `/api/ads/projects/<project_id>/render-file?path=working/<name>.png` — the app 302s that to a
-  fresh presigned S3 URL on every view, so it never expires. A raw `*.fal.media` URL DOES
+  fresh presigned S3 URL on every view, so it never expires. (That render-file URL is
+  browser/session-scoped — it will NOT accept your cal_ token, so do not GET it to verify the
+  render; see the verify rule below.) A raw `*.fal.media` URL DOES
   expire, which breaks the render row while the real file sits unreferenced in storage. Same for
   `thumbnail_url`.
+- `set_final_render { project_id, render_id }` — choose which version the app shows as the final
+  ad. After generating a few variations (each its own `submit_render` + `update_render_status`),
+  call this with the best render's id to pin it as final. `{ project_id, use_latest: true }`
+  clears the pin so the project follows the newest render again. If you only made one render, you
+  don't need to call this — the latest is shown by default.
 - `list_directory` / `read_file` / `get_download_url` / `get_upload_url` — files in your
   agent storage. `get_download_url` returns a presigned **public** URL you can pass to FAL.
 - `append_project_message { project_id, role: "agent", content }` — narrate progress into
@@ -94,17 +101,22 @@ remixing.
    isn't `complete`, run "Set up a brand" above FIRST, then continue.
 2. `get_static_ad_template { template_id }` → keep `source_image_url` + replicability hints.
 3. `create_ad_project { brand_id, name, source_static_template_id }` → keep the returned `project_id`.
-4. Generate the final image (follow `{{REMIX_STATIC_RECIPE}}`) and verify it's a real,
-   non-empty image. **Only then** `submit_render { project_id, kind: "full" }` → upload into the
-   project folder → `update_render_status { render_id, status: "complete", output_url,
-   thumbnail_url }`. (submit_render debits up front — don't open it until the gen is good.)
+4. Generate the image (follow `{{REMIX_STATIC_RECIPE}}`) and verify it's a real, non-empty
+   image. **Only then** `submit_render { project_id, kind: "full" }` → upload into the project
+   folder → `update_render_status { render_id, status: "complete", output_url, thumbnail_url }`.
+   **If you end up with more than one finished output** (e.g. the recipe's HTML path AND the AI
+   path both yield a usable ad), submit EACH as its own render so they show up as selectable
+   versions — don't generate a second image and silently drop it.
    - **Copy:** if the user's instruction names copy changes (headline, CTA, discount, offer),
      apply them. If it doesn't, keep the reference ad's copy — don't invent new copy.
+5. If you saved more than one version, `set_final_render { project_id, render_id }` with the best
+   one so the app shows it as the chosen ad. (One render → it's the default; no need to call.)
 
 **Finish an existing project** — e.g. "finish project <id>":
 1. `get_ad_project { project_id }` → read `source_static_template_id`; `get_static_ad_template`
    for the source image; `get_ad_brand` and run "Set up a brand" if research isn't complete.
-2. Then generate + verify → `submit_render` → `update_render_status` as above.
+2. Then generate + verify → `submit_render` → `update_render_status` for each finished output,
+   then `set_final_render` with the best if you saved more than one — as above.
 
 You MUST create the brand (if missing) and the project through these tools before generating —
 the app reads brands/projects/renders from these rows, not from files.
@@ -213,7 +225,10 @@ bytes to `<fal-storage-proxy>` (`?token=`) → `{ "url": "https://...fal.media..
 
 - Narrate each long step in one line (`append_project_message` or stdout); never sit silent on
   a queue >90s.
-- Verify the output is a real, non-empty image before marking the render complete.
+- Verify the output is a real, non-empty image before marking the render complete — check it
+  via the generation result URL (the `*.fal.media` link) or `get_download_url` of the file you
+  uploaded. Do NOT GET the render-file URL to verify: it's browser/session-scoped and 401s on
+  your token (it exists for the app UI, not for you).
 - **Full product swap (compliance-critical):** EVERY instance of the source product must be
   replaced with the brand's, and **no source-brand name/logo or competitor product may survive
   anywhere in the frame** — a leftover competitor bottle/label ships a trademark in your client's

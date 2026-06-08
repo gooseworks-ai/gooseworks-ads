@@ -3,10 +3,11 @@
  * `gooseworks update`) AND refresh the `ads-remix` skill installed into the
  * user's Claude Code so it points at the freshly-pulled recipes.
  */
-import { ensureSkillsPulled, SKILLS_DIR } from "../skills-repo.mjs";
-import { installClaudeSkill } from "../claude-setup.mjs";
+import { ensureSkillsPulled, SKILLS_DIR } from "../skills-repo.js";
+import { installClaudeSkill } from "../claude-setup.js";
+import type { Flags } from "../config.js";
 
-export async function update() {
+export async function update(_flags: Flags = {}): Promise<void> {
   console.log("Updating skills…");
   const status = await ensureSkillsPulled({ update: true });
   for (const [repo, state] of Object.entries(status)) {
@@ -18,6 +19,6 @@ export async function update() {
     const skillPath = await installClaudeSkill({ update: true });
     console.log(`Refreshed Claude Code skill: ${skillPath}`);
   } catch (err) {
-    console.warn(`Couldn't refresh the Claude Code skill: ${err?.message || err}`);
+    console.warn(`Couldn't refresh the Claude Code skill: ${(err as Error)?.message || err}`);
   }
 }

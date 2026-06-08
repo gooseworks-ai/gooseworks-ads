@@ -22,7 +22,14 @@ const run = promisify(execFile);
 
 const SKILLS_DIR = join(homedir(), ".goose-video", "skills");
 
-const REPOS = {
+interface Repo {
+  dir: string;
+  url: string;
+  sparse: string[];
+  sentinel: string;
+}
+
+const REPOS: Record<string, Repo> = {
   ads: {
     dir: join(SKILLS_DIR, "gooseworks-ads-skills"),
     url: "https://github.com/gooseworks-ai/gooseworks-ads-skills.git",
@@ -38,24 +45,24 @@ const REPOS = {
 };
 
 /** Format key → path (under the ads repo) of the recipe skill folder. */
-const DEFAULT_FORMAT_MAP = {
+const DEFAULT_FORMAT_MAP: Record<string, string> = {
   static: "skills/molecules/ad-format/remix-graphic-ad-from-reference",
   "brand-research": "skills/templates/brand-research",
 };
 
-const exists = (p) =>
+const exists = (p: string): Promise<boolean> =>
   access(p).then(
     () => true,
     () => false,
   );
 
 /** Sparse git clone, mirroring the sandbox's ensureAdsSkillsInstalled. */
-async function pullRepo(repo, { update }) {
+async function pullRepo(repo: Repo, { update }: { update?: boolean }): Promise<string> {
   if (!update && (await exists(join(repo.dir, repo.sentinel)))) {
     return "cached";
   }
   await mkdir(repo.dir, { recursive: true });
-  const git = (args) => run("git", args, { cwd: repo.dir });
+  const git = (args: string[]) => run("git", args, { cwd: repo.dir });
   if (!(await exists(join(repo.dir, ".git")))) {
     await git(["init", "-q"]);
     await git(["remote", "add", "origin", repo.url]).catch(() => {});
@@ -73,8 +80,10 @@ async function pullRepo(repo, { update }) {
  * Ensure both skill repos are present locally. `update: true` re-pulls latest.
  * Returns a per-repo status map for logging.
  */
-export async function ensureSkillsPulled({ update = false } = {}) {
-  const out = {};
+export async function ensureSkillsPulled({ update = false }: { update?: boolean } = {}): Promise<
+  Record<string, string>
+> {
+  const out: Record<string, string> = {};
   for (const [key, repo] of Object.entries(REPOS)) {
     out[key] = await pullRepo(repo, { update });
   }
@@ -82,10 +91,10 @@ export async function ensureSkillsPulled({ update = false } = {}) {
 }
 
 /** Load the repo's format map (formats.json), falling back to the bundled default. */
-async function loadFormatMap() {
+async function loadFormatMap(): Promise<Record<string, string>> {
   try {
     const raw = await readFile(join(REPOS.ads.dir, "formats.json"), "utf8");
-    return { ...DEFAULT_FORMAT_MAP, ...JSON.parse(raw) };
+    return { ...DEFAULT_FORMAT_MAP, ...(JSON.parse(raw) as Record<string, string>) };
   } catch {
     return DEFAULT_FORMAT_MAP;
   }
@@ -95,7 +104,10 @@ async function loadFormatMap() {
  * Resolve a format key (e.g. "static", "brand-research") to the absolute path of
  * its recipe SKILL.md (and its folder). Ensures skills are pulled first.
  */
-export async function resolveSkill(formatKey, { update = false } = {}) {
+export async function resolveSkill(
+  formatKey: string,
+  { update = false }: { update?: boolean } = {},
+): Promise<{ dir: string; skillMd: string }> {
   await ensureSkillsPulled({ update });
   const map = await loadFormatMap();
   const rel = map[formatKey];
@@ -112,7 +124,7 @@ export async function resolveSkill(formatKey, { update = false } = {}) {
 }
 
 /** Absolute path to goose-graphics (HTML→PNG overlay), for recipes that use it. */
-export function gooseGraphicsDir() {
+export function gooseGraphicsDir(): string {
   return join(REPOS.goose.dir, "skills/composites/goose-graphics");
 }
 

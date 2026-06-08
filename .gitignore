@@ -31,3 +31,7 @@ node_modules/
 coverage/
 .turbo/
 package-lock.json
+
+# TypeScript build output (rebuilt on prepublishOnly; shipped via package.json "files")
+dist/
+*.tsbuildinfo
