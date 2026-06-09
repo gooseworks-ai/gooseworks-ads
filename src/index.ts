@@ -57,13 +57,13 @@ Then open Claude Code and paste an instruction, e.g.:
   Use the ads-remix skill to remix template <id> for my brand https://acme.com —
   research the brand, create the project, and generate the final ad.
 
-Browse remixable templates and copy a ready-made prompt at <web>/remix.
+Browse remixable templates and copy a ready-made prompt at https://ads.gooseworks.ai/browse.
 Generation runs on your own Claude Code session + ANTHROPIC key; media is billed to
 ad credits.
 
 Environments (default: prod):
-  prod    app.gooseworks.ai / api.gooseworks.ai     (the default; login --prod)
-  local   localhost:3999 / :5999 / :6200            (login --local)
+  prod    ads.gooseworks.ai / api.gooseworks.ai     (the default; login --prod)
+  local   localhost:4000 / :5999 / :6200            (login --local)
   Switch per-command with --prod / --local, or persist with GOOSE_VIDEO_ENV=local
   in your shell. login saves the chosen environment, so later commands stay on it.
 

@@ -68,12 +68,12 @@ export const ENVIRONMENTS: Record<EnvName, EnvProfile> = {
   local: {
     apiBase: "http://localhost:5999",
     mcpUrl: "http://localhost:6200/mcp",
-    webUrl: "http://localhost:3999",
+    webUrl: "http://localhost:4000",
   },
   prod: {
     apiBase: "https://api.gooseworks.ai",
     mcpUrl: "https://mcp.gooseworks.ai/mcp",
-    webUrl: "https://app.gooseworks.ai",
+    webUrl: "https://ads.gooseworks.ai",
   },
 };
 

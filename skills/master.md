@@ -50,14 +50,21 @@ at `../../brand-research/`", use these instead:
   brand. `create_ad_brand` is for the landing-page flow (no brand exists yet); it does NOT
   start cloud research — you run research here.
 - `get_static_ad_template { template_id }` → the source image to remix:
-  `source_image_url` (a public CDN URL — pass straight to FAL), `ratio`, and replicability
-  hints (`is_replicable`, `remix_engine`, `replicability_notes`). **`remix_engine` is a HINT,
-  not a directive** — the recipe's own anatomy analysis (and `replicability_notes`) are
-  authoritative. If they disagree (e.g. `remix_engine: "html"` but the ad is a photographic /
-  physics-y hero that needs nano-banana-2), trust the anatomy + notes, not the field.
+  `source_image_url` (a public CDN URL — pass straight to FAL), `ratio`, `slug`, and
+  replicability hints (`is_replicable`, `remix_engine`, `replicability_notes`).
+  **`template_id` accepts the template's readable `slug` (e.g. `dibs-desert-island-duo`) OR its
+  uuid** — pass through verbatim whatever the user / paste-prompt gave you; the tool resolves
+  either. When you refer to the creative in messages to the user, use its readable `slug`, not
+  the uuid — it's the nicer, more memorable name.
+  **`remix_engine` is a HINT, not a directive** — the recipe's own anatomy analysis (and
+  `replicability_notes`) are authoritative. If they disagree (e.g. `remix_engine: "html"` but
+  the ad is a photographic / physics-y hero that needs nano-banana-2), trust the anatomy +
+  notes, not the field.
 - `create_ad_project { brand_id, name, source_static_template_id }` → create the remix
-  project pinned to the chosen template. (If the user gave you a `project_id`, call
-  `get_ad_project { project_id }` instead and read its `source_static_template_id`.)
+  project pinned to the chosen template. **Returns `app_url` (the project page) AND `brand_url`
+  (the brand gallery) — keep BOTH; you hand them to the user at the end.** (If the user gave you
+  a `project_id`, call `get_ad_project { project_id }` instead and read its
+  `source_static_template_id` plus the same two links.)
 - `update_ad_brand { brand_id, research_status }` — set `"running"` when you start research
   (and `"failed"` + `research_error` if it dies).
 - `finalize_brand_research { brand_id }` — call this AFTER writing the pack; it re-reads the
@@ -74,12 +81,14 @@ at `../../brand-research/`", use these instead:
   browser/session-scoped — it will NOT accept your cal_ token, so do not GET it to verify the
   render; see the verify rule below.) A raw `*.fal.media` URL DOES
   expire, which breaks the render row while the real file sits unreferenced in storage. Same for
-  `thumbnail_url`.
+  `thumbnail_url`. On `complete` this tool **also returns `app_url` + `brand_url`** for the
+  project — use them as the links you hand the user (see step 6).
 - `set_final_render { project_id, render_id }` — choose which version the app shows as the final
   ad. After generating a few variations (each its own `submit_render` + `update_render_status`),
   call this with the best render's id to pin it as final. `{ project_id, use_latest: true }`
   clears the pin so the project follows the newest render again. If you only made one render, you
-  don't need to call this — the latest is shown by default.
+  don't need to call this — the latest is shown by default. Like the project tools, it also
+  returns `app_url` + `brand_url`, so you always have the links to hand back at the end.
 - `list_directory` / `read_file` / `get_download_url` / `get_upload_url` — files in your
   agent storage. `get_download_url` returns a presigned **public** URL you can pass to FAL.
 - `append_project_message { project_id, role: "agent", content }` — narrate progress into
@@ -97,6 +106,9 @@ remixing.
 3. Do the brand research — follow `{{BRAND_RESEARCH_RECIPE}}`, write the pack to
    `agent-config/brands/<slug>/`.
 4. `finalize_brand_research { brand_id }` → the brand is now ready to remix.
+5. Tell the user the brand is set up and ready. If they want to view it, the next remix returns
+   the brand's `brand_url` (`<app>/ads/brands/<slug>`) — the page listing every creative and the
+   researched assets.
 
 **Remix a template (brand already set up)** — e.g. "remix template <id> for https://acme.com":
 1. Resolve the brand: `list_ad_brands` by name/site. If it's missing or its `research_status`
@@ -113,18 +125,26 @@ remixing.
      apply them. If it doesn't, keep the reference ad's copy — don't invent new copy.
 5. If you saved more than one version, `set_final_render { project_id, render_id }` with the best
    one so the app shows it as the chosen ad. (One render → it's the default; no need to call.)
-6. **Give the user the link to view it.** `create_ad_project` and `get_ad_project` return an
-   `app_url` (`<app>/ads/brands/<slug>/projects/<id>`) — hand that to the user as the place to
-   open the finished ad. Do NOT give them the raw `render-file?path=…` URL: it's an internal,
-   session-scoped image path, not a shareable link.
+6. **Always finish by giving the user BOTH links.** The project tools (`create_ad_project`,
+   `get_ad_project`) and the terminal render tools (`update_render_status` on `complete`,
+   `set_final_render`) all return two URLs — surface BOTH, clearly labelled:
+   - `app_url` (`<app>/ads/brands/<slug>/projects/<id>`) — opens this exact ad; and
+   - `brand_url` (`<app>/ads/brands/<slug>`) — the brand gallery, listing every creative for the
+     brand plus its researched assets.
+   End your reply with both, e.g. `View this ad: <app_url>` and
+   `All your <Brand> creatives: <brand_url>`. This is required, not optional — without the
+   `brand_url` the user can't find where their assets live (this was a real complaint). Do NOT
+   give them the raw `render-file?path=…` URL: it's an internal, session-scoped image path, not a
+   shareable link.
 
 **Finish an existing project** — e.g. "finish project <id>":
-1. `get_ad_project { project_id }` → read `source_static_template_id` + the `app_url` to share
-   later; `get_static_ad_template` for the source image; `get_ad_brand` and run "Set up a brand"
-   if research isn't complete.
+1. `get_ad_project { project_id }` → read `source_static_template_id` + the `app_url` and
+   `brand_url` to share later; `get_static_ad_template` for the source image; `get_ad_brand` and
+   run "Set up a brand" if research isn't complete.
 2. Then generate + verify → `submit_render` → `update_render_status` for each finished output,
    then `set_final_render` with the best if you saved more than one — as above.
-3. Finish by giving the user the project's `app_url` so they can open the result in the app.
+3. Finish by giving the user BOTH the project's `app_url` and the brand's `brand_url` (the
+   gallery) — exactly as in step 6 above.
 
 You MUST create the brand (if missing) and the project through these tools before generating —
 the app reads brands/projects/renders from these rows, not from files.
@@ -242,6 +262,10 @@ bytes to `<fal-storage-proxy>` (`?token=`) → `{ "url": "https://...fal.media..
 
 ## Rules
 
+- **Always end a successful run with BOTH app links** — the project `app_url` AND the brand
+  `brand_url` (both returned by `create_ad_project` / `get_ad_project` / `update_render_status` /
+  `set_final_render`). Never end on just "done", a file path, or only the project link: the
+  `brand_url` is how the user reaches the gallery of all their creatives and researched assets.
 - Narrate each long step in one line (`append_project_message` or stdout); never sit silent on
   a queue >90s.
 - Verify the output is a real, non-empty image before marking the render complete — check it

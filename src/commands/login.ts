@@ -32,15 +32,20 @@ interface LoginResult {
  * After the token is saved, wire up the user's Claude Code (skill + MCP server)
  * and print how to actually use it: open Claude, paste a remix instruction.
  */
-async function finishLogin(settings: { token: string; mcpUrl: string }): Promise<void> {
+async function finishLogin(settings: {
+  token: string;
+  mcpUrl: string;
+  remixBrowseUrl: string;
+}): Promise<void> {
   console.log("\nSetting up Claude Code…");
   await setupClaudeCode(settings);
   console.log(
     "\nDone. Everything else happens in Claude Code — open it and paste an instruction, e.g.:\n" +
       '  "Use the ads-remix skill to remix template <id> for my brand https://acme.com —\n' +
       '   research the brand, create the project, and generate the final ad."\n' +
-      "Browse templates and copy a ready-made prompt at <web>/remix.\n" +
-      "(If Claude Code was already open, restart it or run /mcp so it picks up the tools.)",
+      `Browse templates and copy a ready-made prompt at ${settings.remixBrowseUrl}.\n` +
+      "(If Claude Code was already open, restart it or run /mcp so it picks up the new\n" +
+      " ads-remix skill + tools.)",
   );
 }
 
@@ -83,7 +88,11 @@ export async function login(flags: Flags): Promise<void> {
       env: d.env,
     });
     console.log("Saved token to ~/.goose-video/config.json");
-    await finishLogin({ token: flags.token, mcpUrl: d.mcpUrl });
+    await finishLogin({
+      token: flags.token,
+      mcpUrl: d.mcpUrl,
+      remixBrowseUrl: `${d.webUrl}/browse`,
+    });
     return;
   }
 
@@ -161,10 +170,6 @@ export async function login(flags: Flags): Promise<void> {
   });
 
   console.log(`Logged in${result.email ? ` as ${result.email}` : ""}.`);
-  console.log(`  env:     ${d.env}`);
-  console.log(`  agent:   ${result.agentId || "(none returned)"}`);
-  console.log(`  apiBase: ${resolvedApiBase}`);
-  console.log(`  mcpUrl:  ${mcpUrl}`);
   if (result.scopeType && result.scopeType !== "agent") {
     console.warn(
       `\n⚠ Token scope is "${result.scopeType}", not "agent". Media generation will be\n` +
@@ -173,5 +178,5 @@ export async function login(flags: Flags): Promise<void> {
     );
   }
 
-  await finishLogin({ token: result.token, mcpUrl });
+  await finishLogin({ token: result.token, mcpUrl, remixBrowseUrl: `${d.webUrl}/browse` });
 }
