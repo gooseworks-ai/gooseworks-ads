@@ -17,7 +17,10 @@ export type EnvName = "local" | "prod";
 interface EnvProfile {
   apiBase: string;
   mcpUrl: string;
+  /** Ads app — /browse + the brand/project pages the user-facing links point at. */
   webUrl: string;
+  /** GTM app — serves the /cli/auth loopback page that mints the token. */
+  authUrl: string;
 }
 
 /** Parsed `--flag value` / `--flag=value` / bare `--flag` map. */
@@ -51,6 +54,7 @@ export interface LoginDefaults {
   apiBase: string;
   mcpUrl: string;
   webUrl: string;
+  authUrl: string;
 }
 
 /**
@@ -59,21 +63,28 @@ export interface LoginDefaults {
  * still be overridden per-call with `--api-base` / `--mcp-url` / `--web-url`
  * or the `GOOSE_VIDEO_API_BASE` / `_MCP_URL` / `_WEB_URL` env vars.
  *
- * Note: the /cli/auth login page is served by the WEB app (app.*); the proxies,
- * credits, and MCP are on the API (api.*). In local dev these are 3999 / 5999 /
- * 6200. `login` also overwrites mcpUrl with whatever the auth callback reports
- * (`mcp_server_url`), so the prod mcpUrl below is just a pre-login fallback.
+ * Two distinct frontends:
+ *  - authUrl = the GTM app (app.gooseworks.ai / :3999). It serves the /cli/auth
+ *    loopback page that mints the token; the ads app does NOT have that route.
+ *  - webUrl  = the ads app (ads.gooseworks.ai / :4000). /browse + the brand /
+ *    project pages the user-facing links point at.
+ * The API (proxies, credits, MCP) is api.* / :5999. `login` overwrites mcpUrl
+ * with whatever the auth callback reports, so the prod mcpUrl is a pre-login
+ * fallback. Override any URL per-call with --api-base / --mcp-url / --web-url /
+ * --auth-url or the matching GOOSE_VIDEO_* env vars.
  */
 export const ENVIRONMENTS: Record<EnvName, EnvProfile> = {
   local: {
     apiBase: "http://localhost:5999",
     mcpUrl: "http://localhost:6200/mcp",
     webUrl: "http://localhost:4000",
+    authUrl: "http://localhost:3999",
   },
   prod: {
     apiBase: "https://api.gooseworks.ai",
     mcpUrl: "https://mcp.gooseworks.ai/mcp",
     webUrl: "https://ads.gooseworks.ai",
+    authUrl: "https://app.gooseworks.ai",
   },
 };
 
@@ -185,6 +196,7 @@ export function defaults(flags: Flags = {}): LoginDefaults {
     apiBase: stripSlash(asStr(flags.apiBase) || process.env.GOOSE_VIDEO_API_BASE || profile.apiBase),
     mcpUrl: asStr(flags.mcpUrl) || process.env.GOOSE_VIDEO_MCP_URL || profile.mcpUrl,
     webUrl: stripSlash(asStr(flags.webUrl) || process.env.GOOSE_VIDEO_WEB_URL || profile.webUrl),
+    authUrl: stripSlash(asStr(flags.authUrl) || process.env.GOOSE_VIDEO_AUTH_URL || profile.authUrl),
   };
 }
 

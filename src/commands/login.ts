@@ -76,8 +76,8 @@ export async function login(flags: Flags): Promise<void> {
   // default prod) plus any per-URL flag/env overrides.
   const d = defaults(flags);
   const apiBase = d.apiBase;
-  const webUrl = d.webUrl;
-  console.log(`Environment: ${d.env}  (apiBase ${apiBase}, web ${webUrl})`);
+  // The /cli/auth loopback page lives on the GTM app (authUrl), NOT the ads app.
+  console.log(`Environment: ${d.env}  (sign in at ${d.authUrl}, api ${apiBase})`);
 
   // Manual mode — paste a token you already minted.
   if (typeof flags.token === "string" && flags.token.startsWith("cal_")) {
@@ -141,7 +141,7 @@ export async function login(flags: Flags): Promise<void> {
       const port = addr ? addr.port : 0;
       // agent_target=org_default pins the token to the org's shared "Ads agent",
       // so the local worker reads/writes the same storage the in-app ads flow uses.
-      const authUrl = `${webUrl}/cli/auth?callback_port=${port}&state=${nonce}&scope_type=agent&agent_target=org_default`;
+      const authUrl = `${d.authUrl}/cli/auth?callback_port=${port}&state=${nonce}&scope_type=agent&agent_target=org_default`;
       console.log(`\nOpening ${authUrl}`);
       console.log("Sign in with Google if prompted; this tab returns automatically.\n");
       openBrowser(authUrl);

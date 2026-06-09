@@ -1,6 +1,6 @@
 {
   "name": "goose-video",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Setup CLI for running Gooseworks ads locally in Claude Code.",
   "license": "MIT",
   "author": "GooseWorks <help@gooseworks.ai>",

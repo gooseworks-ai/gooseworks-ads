@@ -44,7 +44,7 @@ function parseFlags(argv: string[]): Flags {
 const HELP = `goose-video — set up Gooseworks ads in your own Claude Code
 
 Usage:
-  goose-video login    [--prod | --local] [--web-url URL] [--api-base URL] [--mcp-url URL] [--token cal_…]
+  goose-video login    [--prod | --local] [--web-url URL] [--auth-url URL] [--api-base URL] [--mcp-url URL] [--token cal_…]
   goose-video logout
   goose-video whoami                 # checks the token + app-mcp connection
   goose-video credits
@@ -67,9 +67,9 @@ Environments (default: prod):
   Switch per-command with --prod / --local, or persist with GOOSE_VIDEO_ENV=local
   in your shell. login saves the chosen environment, so later commands stay on it.
 
-Global flags: --prod, --local, --api-base, --mcp-url, --web-url, --token
+Global flags: --prod, --local, --api-base, --mcp-url, --web-url, --auth-url, --token
   Per-URL flags / env vars override the environment. Env vars: GOOSE_VIDEO_ENV,
-  GOOSE_VIDEO_API_BASE, GOOSE_VIDEO_MCP_URL, GOOSE_VIDEO_WEB_URL.`;
+  GOOSE_VIDEO_API_BASE, GOOSE_VIDEO_MCP_URL, GOOSE_VIDEO_WEB_URL, GOOSE_VIDEO_AUTH_URL.`;
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
