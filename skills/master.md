@@ -107,7 +107,7 @@ remixing.
    `agent-config/brands/<slug>/`.
 4. `finalize_brand_research { brand_id }` → the brand is now ready to remix.
 5. Tell the user the brand is set up and ready. If they want to view it, the next remix returns
-   the brand's `brand_url` (`<app>/ads/brands/<slug>`) — the page listing every creative and the
+   the brand's `brand_url` (use it verbatim) — the page listing every creative and the
    researched assets.
 
 **Remix a template (brand already set up)** — e.g. "remix template <id> for https://acme.com":
@@ -128,11 +128,14 @@ remixing.
 6. **Always finish by giving the user BOTH links.** The project tools (`create_ad_project`,
    `get_ad_project`) and the terminal render tools (`update_render_status` on `complete`,
    `set_final_render`) all return two URLs — surface BOTH, clearly labelled:
-   - `app_url` (`<app>/ads/brands/<slug>/projects/<id>`) — opens this exact ad; and
-   - `brand_url` (`<app>/ads/brands/<slug>`) — the brand gallery, listing every creative for the
-     brand plus its researched assets.
-   End your reply with both, e.g. `View this ad: <app_url>` and
-   `All your <Brand> creatives: <brand_url>`. This is required, not optional — without the
+   - `app_url` — opens this exact ad; and
+   - `brand_url` — the brand gallery, listing every creative for the brand plus its researched
+     assets.
+   **Paste the EXACT `app_url` / `brand_url` strings the tool returned — copy them verbatim. Do
+   NOT build, reformat, or guess the URL: don't prepend a host, don't add an `/ads` segment, don't
+   change the domain. The tool already returns the full, correct URL (it points at the ads app).**
+   End your reply with both, e.g. `View this ad: <paste app_url>` and
+   `All your <Brand> creatives: <paste brand_url>`. This is required, not optional — without the
    `brand_url` the user can't find where their assets live (this was a real complaint). Do NOT
    give them the raw `render-file?path=…` URL: it's an internal, session-scoped image path, not a
    shareable link.
