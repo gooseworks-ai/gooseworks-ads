@@ -89,8 +89,12 @@ export async function setupClaudeCode(settings: {
 }): Promise<{ skillPath: string | null; mcpRegistered: boolean }> {
   let skillPath: string | null = null;
   try {
-    skillPath = await installClaudeSkill();
-    console.log(`  ✓ skill installed:  ${skillPath}`);
+    // Refresh on login: re-pull the latest recipes before rendering, so the
+    // installed skill is never pinned to a stale cache from an earlier login.
+    // Without this, skill fixes (e.g. the parallelised brand research) silently
+    // never reach returning users until they happen to run `goose-video update`.
+    skillPath = await installClaudeSkill({ update: true });
+    console.log(`  ✓ ads-remix skill installed (latest):  ${skillPath}`);
   } catch (err) {
     console.warn(`  ⚠ couldn't install the ads-remix skill: ${(err as Error)?.message || err}`);
   }
