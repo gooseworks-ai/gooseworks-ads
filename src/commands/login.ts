@@ -26,6 +26,8 @@ interface LoginResult {
   email: string | null;
   mcpServerUrl: string | null;
   apiBase: string | null;
+  isNewUser: boolean;
+  starterCreditsGranted: number;
 }
 
 /**
@@ -132,6 +134,10 @@ export async function login(flags: Flags): Promise<void> {
         email: url.searchParams.get("email"),
         mcpServerUrl: url.searchParams.get("mcp_server_url"),
         apiBase: url.searchParams.get("api_base"),
+        isNewUser: url.searchParams.get("is_new_user") === "1",
+        starterCreditsGranted: Number(
+          url.searchParams.get("starter_credits_granted") ?? 0,
+        ),
       });
     });
 
@@ -170,6 +176,11 @@ export async function login(flags: Flags): Promise<void> {
   });
 
   console.log(`Logged in${result.email ? ` as ${result.email}` : ""}.`);
+  if (result.isNewUser && result.starterCreditsGranted > 0) {
+    console.log(
+      `🎉 ${result.starterCreditsGranted} free credits added to your account.`,
+    );
+  }
   if (result.scopeType && result.scopeType !== "agent") {
     console.warn(
       `\n⚠ Token scope is "${result.scopeType}", not "agent". Media generation will be\n` +
